@@ -1,0 +1,9 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# local notes (keep your real Supabase keys out of git!)
+config.local.js
+.env
+.vercel

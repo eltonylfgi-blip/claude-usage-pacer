@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ritmo de uso de Claude</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0f1115; --card:#1a1d24; --card2:#22262f; --txt:#e8eaed; --muted:#9aa0aa;
+    --line:#2d323c; --accent:#6aa3ff; --green:#36c275; --amber:#f0b429; --red:#ef5b5b;
+    --shadow:0 6px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);color:var(--txt);padding:22px;line-height:1.45}
+  .wrap{max-width:560px;margin:0 auto}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  h1{font-size:20px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .cloud{font-size:11px;color:var(--muted);white-space:nowrap;border:1px solid var(--line);
+    border-radius:20px;padding:5px 10px;background:var(--card)}
+  .cloud.ok{color:#bff0d3;border-color:rgba(54,194,117,.4)}
+  .cloud.off{color:#f6dd9a;border-color:rgba(240,180,41,.4)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .field{flex:1;min-width:130px;margin-bottom:12px}
+  input{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:11px 12px;font-size:16px}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{background:var(--accent);color:#0a0c10;border:none;border-radius:10px;
+    padding:12px 16px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+  button:active{transform:translateY(1px)}
+  .banner{border-radius:14px;padding:16px 18px;text-align:center;margin-bottom:4px}
+  .banner .big{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  .banner .small{font-size:14px;opacity:.92;margin-top:2px}
+  .b-green{background:rgba(54,194,117,.14);border:1px solid rgba(54,194,117,.4);color:#bff0d3}
+  .b-amber{background:rgba(240,180,41,.13);border:1px solid rgba(240,180,41,.4);color:#f6dd9a}
+  .b-red{background:rgba(239,91,91,.13);border:1px solid rgba(239,91,91,.4);color:#f6bcbc}
+  .stats{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .stat{flex:1 1 calc(50% - 5px);background:var(--card2);border:1px solid var(--line);border-radius:12px;
+    padding:12px;text-align:center}
+  .stat.hero{background:rgba(106,163,255,.12);border-color:rgba(106,163,255,.4)}
+  .stat .n{font-size:22px;font-weight:700}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
+  .gauge{margin-top:16px}
+  .track{position:relative;height:16px;background:var(--card2);border-radius:10px;
+    border:1px solid var(--line);overflow:visible}
+  .fill{position:absolute;top:0;left:0;height:100%;border-radius:10px;
+    background:linear-gradient(90deg,#4f8bff,#6aa3ff)}
+  .pace{position:absolute;top:-5px;width:2px;height:26px;background:#fff;border-radius:2px}
+  .pace::after{content:"tope hoy";position:absolute;top:-16px;left:50%;
+    transform:translateX(-50%);font-size:9px;color:#fff;white-space:nowrap}
+  .glabels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+  h2{font-size:14px;color:var(--muted);font-weight:600;margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  .logrow{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+  .logrow .d{width:74px;color:var(--muted)}
+  .bar{flex:1;height:9px;background:var(--card2);border-radius:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .logrow .v{width:42px;text-align:right;font-variant-numeric:tabular-nums}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--muted);font-size:13px}
+  .danger{color:var(--red);background:none;border:1px solid var(--red);width:auto;padding:8px 12px;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><h1>Ritmo de uso de Claude</h1></div>
+    <span id="cloud" class="cloud">…</span>
+  </div>
+  <p class="sub">Reparte tu % semanal sin gastarlo antes de tiempo. Teclea el % que ves en la app de Claude y te dice hasta dónde puedes llegar hoy. Funciona sin conexión; opcionalmente sincroniza entre dispositivos con tu propia base de datos (ver README).</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="field">
+        <label>% semanal usado (todos los modelos)</label>
+        <input id="pct" type="number" inputmode="decimal" min="0" max="100" step="0.1" placeholder="ej. 4">
+      </div>
+      <div class="field">
+        <label>% Sonnet usado (opcional)</label>
+        <input id="sonnet" type="number" inputmode="decimal" min="0" max="100" step="0.1" placeholder="ej. 3">
+      </div>
+    </div>
+    <button id="saveBtn">Guardar lo de hoy</button>
+    <div class="hint" id="savedHint"></div>
+  </div>
+
+  <div class="card">
+    <div id="banner" class="banner b-green">
+      <div class="big" id="bigMsg">—</div>
+      <div class="small" id="smallMsg">Teclea tu % para empezar</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat hero"><div class="n" id="sCap">—</div><div class="l">HOY puedes llegar hasta</div></div>
+      <div class="stat"><div class="n" id="sToday">—</div><div class="l">te queda para hoy</div></div>
+      <div class="stat"><div class="n" id="sRate">—</div><div class="l">ritmo por día</div></div>
+      <div class="stat"><div class="n" id="sDays">—</div><div class="l">días al reset</div></div>
+    </div>
+
+    <div class="gauge">
+      <div class="track">
+        <div class="fill" id="fill" style="width:0%"></div>
+        <div class="pace" id="paceMark" style="left:0%"></div>
+      </div>
+      <div class="glabels"><span>0%</span><span id="usedLbl">usado 0%</span><span>100%</span></div>
+      <div class="hint">El azul = lo que llevas usado. La rayita blanca = el tope hasta donde puedes llegar HOY. Llena el azul hasta la rayita y vas perfecto.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Tu semana</h2>
+    <div id="logList"></div>
+    <div class="hint" id="emptyLog">Aún no has registrado nada esta semana.</div>
+  </div>
+
+  <div class="card">
+    <h2>Ajustes</h2>
+    <div class="field">
+      <label>Fecha de reinicio semanal</label>
+      <input id="resetDate" type="date">
+    </div>
+    <div class="hint">El ciclo es de 7 días y se renueva solo cada semana. Si tu reset es otro día, cámbialo aquí.</div>
+    <details>
+      <summary>Borrar mi historial</summary>
+      <button class="danger" id="clearBtn">Borrar todo el registro</button>
+    </details>
+  </div>
+
+  <p class="sub" style="text-align:center">Por defecto, tus datos se guardan solo en este navegador. Si configuras Supabase (ver README), se sincronizan entre tus dispositivos.</p>
+</div>
+
+<script>
+// ============================================================
+//  CONFIG — Sincronización opcional entre dispositivos
+//  Por defecto esta app guarda TODO en tu navegador (modo local),
+//  sin servidor. Funciona perfecta así.
+//
+//  ¿Quieres sincronizar PC <-> móvil? Crea un proyecto GRATIS en
+//  https://supabase.com, crea las tablas (SQL en el README) y pega
+//  aquí tu URL y tu publishable/anon key (es PÚBLICA, la protege RLS):
+// ============================================================
+const SUPABASE_URL = '';   // ej. 'https://xxxx.supabase.co'
+const SUPABASE_KEY = '';   // ej. 'sb_publishable_...'
+const OWNER        = 'me';  // cambia esto si compartes tabla con otra persona
+// ============================================================
+
+const CLOUD_ENABLED = !!(SUPABASE_URL && SUPABASE_KEY);
+let sb = null;
+if(CLOUD_ENABLED){ try{ sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }catch(e){ sb = null; } }
+
+// ---------- Estado local (cache / offline) ----------
+const DAY = 86400000;
+const KEY = 'pacerClaude_v2';
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
+function saveLocal(s){ localStorage.setItem(KEY, JSON.stringify(s)); }
+
+let s = load();
+if(!s.nextReset) s.nextReset = '2026-07-03';
+if(!s.cycleDays) s.cycleDays = 7;
+if(!Array.isArray(s.log)) s.log = [];
+saveLocal(s);
+
+function setCloud(state, txt){
+  const el = document.getElementById('cloud');
+  el.className = 'cloud' + (state?(' '+state):'');
+  el.textContent = txt;
+}
+
+// ---------- Nube (opcional) ----------
+async function pull(){
+  if(!sb){ setCloud('off','💾 solo local'); return; }
+  try{
+    const cfg = await sb.from('pacer_config').select('reset_date,cycle_days').eq('owner',OWNER).maybeSingle();
+    if(cfg.data){
+      if(cfg.data.reset_date) s.nextReset = cfg.data.reset_date;
+      if(cfg.data.cycle_days) s.cycleDays = cfg.data.cycle_days;
+    }
+    const rows = await sb.from('pacer_uso').select('fecha,pct,sonnet').eq('owner',OWNER).order('fecha',{ascending:true});
+    if(rows.error) throw rows.error;
+    s.log = (rows.data||[]).map(r=>({ date:r.fecha, pct:Number(r.pct), sonnet:(r.sonnet==null?null:Number(r.sonnet)) }));
+    saveLocal(s);
+    setCloud('ok','☁ sincronizado');
+    render();
+  }catch(e){ setCloud('off','sin conexión (uso local)'); }
+}
+async function pushDay(entry){
+  if(!sb){ return; }
+  try{
+    const { error } = await sb.from('pacer_uso').upsert({
+      owner:OWNER, fecha:entry.date, pct:entry.pct, sonnet:entry.sonnet, updated_at:new Date().toISOString()
+    }, { onConflict:'owner,fecha' });
+    if(error) throw error;
+    setCloud('ok','☁ sincronizado');
+  }catch(e){ setCloud('off','sin conexión (guardado local)'); }
+}
+async function pushConfig(){
+  if(!sb) return;
+  try{
+    await sb.from('pacer_config').upsert({ owner:OWNER, reset_date:s.nextReset, cycle_days:s.cycleDays, updated_at:new Date().toISOString() }, { onConflict:'owner' });
+    setCloud('ok','☁ sincronizado');
+  }catch(e){ setCloud('off','sin conexión'); }
+}
+async function clearCloud(){ if(!sb) return; try{ await sb.from('pacer_uso').delete().eq('owner',OWNER); }catch(e){} }
+
+// ---------- Cálculo / UI ----------
+function todayStr(d){
+  d = d || new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function currentReset(){
+  let reset = new Date(s.nextReset+'T00:00:00');
+  const now = new Date();
+  let guard = 0;
+  while(now >= reset && guard < 520){ reset = new Date(reset.getTime() + s.cycleDays*DAY); guard++; }
+  return reset;
+}
+function latestUsed(){
+  const reset = currentReset();
+  const start = new Date(reset.getTime() - s.cycleDays*DAY);
+  const inCycle = s.log.filter(e => new Date(e.date+'T12:00:00') >= start);
+  if(inCycle.length) return inCycle[inCycle.length-1].pct;
+  return null;
+}
+function fmt(n){ return (Math.round(n*10)/10).toString(); }
+
+function render(){
+  document.getElementById('resetDate').value = s.nextReset;
+  const reset = currentReset();
+  const start = new Date(reset.getTime() - s.cycleDays*DAY);
+  const now = new Date();
+  const total = reset - start;
+  const endToday = new Date(now); endToday.setHours(23,59,59,999);
+  const fracEndToday = Math.min(Math.max((endToday - start),0)/total, 1);
+  const daysRemaining = Math.max((reset - now)/DAY, 0.01);
+  const used = latestUsed();
+
+  const banner = document.getElementById('banner');
+  const big = document.getElementById('bigMsg');
+  const small = document.getElementById('smallMsg');
+
+  const capToday = Math.min(fracEndToday*100, 100);
+  document.getElementById('paceMark').style.left = capToday + '%';
+  document.getElementById('sDays').textContent = fmt(daysRemaining);
+
+  if(used === null){
+    document.getElementById('fill').style.width = '0%';
+    document.getElementById('usedLbl').textContent = 'usado 0%';
+    document.getElementById('sCap').textContent = '—';
+    document.getElementById('sToday').textContent = '—';
+    document.getElementById('sRate').textContent = '—';
+    big.textContent = '—';
+    small.textContent = 'Teclea tu % y pulsa Guardar';
+    banner.className = 'banner b-green';
+    renderLog(start);
+    return;
+  }
+
+  document.getElementById('fill').style.width = Math.min(used,100) + '%';
+  document.getElementById('usedLbl').textContent = 'usado ' + fmt(used) + '%';
+
+  const allowanceToday = Math.max(capToday - used, 0);
+  const ratePerDay = Math.max((100 - used)/daysRemaining, 0);
+  document.getElementById('sCap').textContent = fmt(capToday) + '%';
+  document.getElementById('sToday').textContent = '+' + fmt(allowanceToday) + '%';
+  document.getElementById('sRate').textContent = fmt(ratePerDay) + '%';
+
+  const resetTxt = reset.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  const surplus = capToday - used;
+
+  if(used >= 100){
+    big.textContent = 'Límite alcanzado';
+    small.textContent = 'Toca esperar al reset (' + resetTxt + ')';
+    banner.className = 'banner b-red';
+  } else if(surplus >= 5){
+    big.textContent = 'Te sobra margen';
+    small.textContent = 'Hoy puedes llegar hasta el ' + fmt(capToday) + '% semanal (llevas ' + fmt(used) + '%). Te queda +' + fmt(allowanceToday) + '% para hoy.';
+    banner.className = 'banner b-green';
+  } else if(used > capToday + 1){
+    big.textContent = 'Vas rápido, frena';
+    small.textContent = 'Hoy tocaba como mucho el ' + fmt(capToday) + '% y ya vas en ' + fmt(used) + '%. Si lo repartes, ' + fmt(ratePerDay) + '%/día hasta el ' + resetTxt + '.';
+    banner.className = 'banner b-red';
+  } else {
+    big.textContent = 'Vas en ritmo';
+    small.textContent = 'Hoy puedes llegar hasta el ' + fmt(capToday) + '% semanal (llevas ' + fmt(used) + '%). Te queda +' + fmt(allowanceToday) + '% para hoy.';
+    banner.className = 'banner b-amber';
+  }
+  renderLog(start);
+}
+
+function renderLog(start){
+  const list = document.getElementById('logList');
+  const empty = document.getElementById('emptyLog');
+  const inCycle = s.log.filter(e => new Date(e.date+'T12:00:00') >= start).slice(-10);
+  if(!inCycle.length){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  list.innerHTML = inCycle.map(e=>{
+    const d = new Date(e.date+'T12:00:00');
+    const dl = d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric'});
+    const son = (e.sonnet!=null) ? ' · Sonnet '+fmt(e.sonnet)+'%' : '';
+    return '<div class="logrow"><div class="d">'+dl+'</div>'+
+           '<div class="bar"><i style="width:'+Math.min(e.pct,100)+'%"></i></div>'+
+           '<div class="v">'+fmt(e.pct)+'%'+'</div></div>'+
+           (son?'<div class="hint" style="margin:-4px 0 8px 84px">'+son.trim()+'</div>':'');
+  }).join('');
+}
+
+// ---------- Eventos ----------
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const v = parseFloat(document.getElementById('pct').value);
+  if(isNaN(v)){ alert('Pon el % semanal (el número de la app de Claude)'); return; }
+  const sonV = document.getElementById('sonnet').value;
+  const t = todayStr();
+  const entry = { date:t, pct:v, sonnet: sonV===''?null:parseFloat(sonV) };
+  const existing = s.log.find(e=>e.date===t);
+  if(existing){ existing.pct = entry.pct; existing.sonnet = entry.sonnet; }
+  else { s.log.push(entry); }
+  s.log.sort((a,b)=> a.date<b.date?-1:1);
+  saveLocal(s);
+  document.getElementById('savedHint').textContent = 'Guardado ✓ ('+t+')';
+  render();
+  await pushDay(entry);
+});
+document.getElementById('resetDate').addEventListener('change', async e=>{
+  if(e.target.value){ s.nextReset = e.target.value; saveLocal(s); render(); await pushConfig(); }
+});
+document.getElementById('clearBtn').addEventListener('click', async ()=>{
+  if(confirm('¿Borrar todo el historial de uso?')){
+    s.log = []; saveLocal(s); render();
+    document.getElementById('savedHint').textContent='';
+    await clearCloud();
+  }
+});
+
+// ---------- Arranque ----------
+(function(){ const u = latestUsed(); if(u!=null) document.getElementById('pct').value = u; })();
+setCloud(CLOUD_ENABLED?'':'off', CLOUD_ENABLED?'conectando…':'💾 solo local');
+render();
+if(CLOUD_ENABLED) pull();
+</script>
+</body>
+</html>
