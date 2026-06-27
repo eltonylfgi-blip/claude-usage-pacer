@@ -100,8 +100,8 @@ read it from the app's usage panel and enter it here.
 
 ## Contributing
 
-The UI is currently in Spanish. **Translations (i18n) are very welcome** — open a PR. Bug reports and
-ideas too.
+The UI is **bilingual (English / Spanish)** and auto-detects your browser language (with a manual
+toggle). More translations are very welcome — open a PR. Bug reports and ideas too.
 
 ## License
 
