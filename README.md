@@ -7,6 +7,8 @@ until reset.
 
 No build step, no framework, no account required. It's one `index.html`. Open it and you're done.
 
+**▶️ Live demo:** <https://claude-usage-pacer.vercel.app>
+
 > Why this exists: Claude's subscription plans have weekly usage limits. It's easy to spend most of
 > your week's budget in the first two days and then get stuck. This gives you a simple "you can go up
 > to X% today" number so you pace yourself.
